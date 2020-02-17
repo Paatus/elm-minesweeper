@@ -1,0 +1,117 @@
+/*
+  elm-hot creates an additional div wrapper around the app to make HMR possible.
+  This could break styling in development mode if you are using Elm UI.
+
+  More context in the issue:
+    https://github.com/halfzebra/create-elm-app/issues/320
+*/
+[data-elm-hot="true"] {
+  height: inherit;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+  font-family: 'Source Sans Pro', 'Trebuchet MS', 'Lucida Grande', 'Bitstream Vera Sans', 'Helvetica Neue', sans-serif;
+  margin: 0;
+  text-align: center;
+  color: #293c4b;
+}
+
+h1 {
+  font-size: 30px;
+}
+
+img {
+  margin: 20px 0;
+  max-width: 200px;
+}
+
+.gameBoard {
+    width: 500px;
+    height: 500px;
+    margin: 1em auto;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+
+.hidden-cell,
+.visible-cell,
+.flag-cell {
+    background: #c0c0c0;
+    width: 25px;
+    height: 25px;
+    border: 1px solid gray;
+    cursor: pointer;
+    align-content: center;
+    justify-content: center;
+    line-height: 25px;
+}
+
+.visible-cell {
+    background: #dedede;
+}
+
+.visible-cell.one {
+    color: blue;
+}
+.visible-cell.two {
+    color: green;
+}
+.visible-cell.three {
+    color: red;
+}
+.visible-cell.four {
+    color: darkblue;
+}
+.visible-cell.five {
+    color: darkred;
+}
+.visible-cell.six {
+    color: cyan;
+}
+.visible-cell.seven {
+    color: black;
+}
+.visible-cell.eight {
+    color: gray;
+}
+
+.bomb {
+    background-image: url('../public/bomb.svg');
+}
+
+.flag {
+    background-color: #c0c0c0;
+    background-image: url('../public/flag.svg');
+}
+
+
+.gamestatus  {
+    width: 100px;
+    height: 100px;
+    margin: 1em auto;
+}
+
+.gamestatus.running {
+    background-image: url('../public/happy.svg');
+}
+.gamestatus.lost {
+    background-image: url('../public/dead.svg');
+}
+.gamestatus.won {
+    background-image: url('../public/very-happy.svg');
+}
+
+.button-row {
+    list-style: none;
+    display: flex;
+    flex-direction: row;
+    padding: 0;
+    width: 500px;
+    margin: 1em auto;
+    justify-content: space-around;
+}
