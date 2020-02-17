@@ -1,0 +1,21 @@
+{
+  "main.css": "/elm-minesweeper/static/css/main.b45e1039.chunk.css",
+  "main.js": "/elm-minesweeper/static/js/main.b445e740.chunk.js",
+  "main.js.map": "/elm-minesweeper/static/js/main.b445e740.chunk.js.map",
+  "runtime~main.js": "/elm-minesweeper/static/js/runtime~main.4b0dacf4.js",
+  "runtime~main.js.map": "/elm-minesweeper/static/js/runtime~main.4b0dacf4.js.map",
+  "vendors~main.js": "/elm-minesweeper/static/js/vendors~main.3ca81432.chunk.js",
+  "vendors~main.js.map": "/elm-minesweeper/static/js/vendors~main.3ca81432.chunk.js.map",
+  "./service-worker.js": "/elm-minesweeper/./service-worker.js",
+  "bomb.svg": "/elm-minesweeper/bomb.svg",
+  "dead.svg": "/elm-minesweeper/dead.svg",
+  "favicon.ico": "/elm-minesweeper/favicon.ico",
+  "flag.svg": "/elm-minesweeper/flag.svg",
+  "happy.svg": "/elm-minesweeper/happy.svg",
+  "index.html": "/elm-minesweeper/index.html",
+  "logo.svg": "/elm-minesweeper/logo.svg",
+  "manifest.json": "/elm-minesweeper/manifest.json",
+  "precache-manifest.a0f230cbca4b57a394c3d7f17a9b7e12.js": "/elm-minesweeper/precache-manifest.a0f230cbca4b57a394c3d7f17a9b7e12.js",
+  "static/media/main.css": "/elm-minesweeper/static/media/very-happy.0e2dc0a9.svg",
+  "very-happy.svg": "/elm-minesweeper/very-happy.svg"
+}
