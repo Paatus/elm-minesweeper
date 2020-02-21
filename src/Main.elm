@@ -3,11 +3,12 @@ module Main exposing (..)
 import Browser
 import Dict exposing (Dict)
 import Grid
-import Html exposing (Html, b, button, div, h1, img, li, text, ul)
+import Html exposing (Html, b, button, div, h1, h2, img, li, text, ul)
 import Html.Attributes exposing (class, src)
 import Html.Events exposing (onClick)
 import Random exposing (Generator, generate)
 import RightClick exposing (onRightClick)
+import Time exposing (every, toMillis, utc)
 import Types exposing (..)
 
 
@@ -26,6 +27,7 @@ type alias Model =
     , gameStatus : GameStatus
     , bombAmount : Int
     , remainingFlags : Int
+    , gameDurationSeconds : Int
     }
 
 
@@ -44,6 +46,7 @@ init initialSeed =
       , gameStatus = Running
       , bombAmount = bombAmount
       , remainingFlags = bombAmount
+      , gameDurationSeconds = 0
       }
     , Cmd.none
     )
@@ -61,6 +64,7 @@ type Msg
     | CellClick Coordinates
     | CellRightClick Coordinates
     | VisibleCellClick Coordinates
+    | SecondElapsed Time.Posix
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -68,6 +72,9 @@ update msg model =
     case msg of
         NoOp ->
             ( model, Cmd.none )
+
+        SecondElapsed _ ->
+            ( tickSeconds model, Cmd.none )
 
         StartGame ->
             ( { model | gameState = InGame }, Cmd.none )
@@ -77,47 +84,59 @@ update msg model =
                 newSeed =
                     Random.step (Random.int 0 512) model.randomSeed
                         |> Tuple.second
-
-                newModel =
-                    updateGridAndStatus (\_ -> Grid.generate 20 model.bombAmount newSeed) model
             in
-            ( { newModel
-                | randomSeed = newSeed
-                , remainingFlags = newModel.bombAmount
-              }
-            , Cmd.none
-            )
+            updateGridAndStatus (\_ -> Grid.generate 20 model.bombAmount newSeed)
+                { model
+                    | randomSeed = newSeed
+                    , remainingFlags = model.bombAmount
+                    , gameDurationSeconds = 0
+                }
 
         CellClick ( x, y ) ->
-            ( updateGridAndStatus (Grid.visit ( x, y )) model
-            , Cmd.none
-            )
+            updateGridAndStatus (Grid.visit ( x, y )) model
 
         VisibleCellClick ( x, y ) ->
-            ( updateGridAndStatus (Grid.showSurrounding ( x, y )) model
-            , Cmd.none
-            )
+            updateGridAndStatus (Grid.showSurrounding ( x, y )) model
 
         CellRightClick ( x, y ) ->
             let
-                m =
+                ( m, cmd ) =
                     updateGridAndStatus (Grid.flag ( x, y )) model
             in
-            ( { m | remainingFlags = m.bombAmount - Grid.flagsPlaced m.grid }
-            , Cmd.none
-            )
+            ( { m | remainingFlags = m.bombAmount - Grid.placedFlags m.grid }, cmd )
 
         BackToMenu ->
             update ResetGame { model | gameState = StartMenu }
 
 
-updateGridAndStatus : (Grid -> Grid) -> Model -> Model
+tickSeconds : Model -> Model
+tickSeconds model =
+    { model | gameDurationSeconds = model.gameDurationSeconds + 1 }
+
+
+isFirstAction : Grid -> Bool
+isFirstAction grid =
+    Grid.untouched grid
+
+
+updateGridAndStatus : (Grid -> Grid) -> Model -> ( Model, Cmd Msg )
 updateGridAndStatus gridUpdater model =
     let
         newGrid =
             gridUpdater model.grid
+
+        gameStatus =
+            Grid.evaluateGameStatus newGrid
+
+        firstAction =
+            isFirstAction model.grid
     in
-    { model | grid = newGrid, gameStatus = Grid.evaluateGameStatus newGrid }
+    ( { model
+        | grid = newGrid
+        , gameStatus = gameStatus
+      }
+    , Cmd.none
+    )
 
 
 
@@ -227,17 +246,52 @@ gameStatusToGreeting gameStatus =
             "You lost! Better luck next time"
 
 
+zeroPad : Int -> String
+zeroPad =
+    String.fromInt
+        >> String.padLeft 2 '0'
+
+
+viewCounter : String -> Int -> Html msg
+viewCounter title durationSeconds =
+    let
+        hours =
+            durationSeconds // (60 * 60)
+
+        minutes =
+            durationSeconds // 60
+
+        seconds =
+            if durationSeconds > 60 then
+                remainderBy 60 durationSeconds
+            else
+                durationSeconds
+    in
+    div []
+        [ text
+            ([ hours, minutes, seconds ]
+                |> List.map zeroPad
+                |> List.intersperse ":"
+                |> (::) title
+                |> String.concat
+            )
+        ]
+
+
 viewInGame : Model -> Html Msg
 viewInGame model =
     div []
-        [ div []
+        [ div [ class "gameWrapper" ]
             [ h1 [] [ text (gameStatusToGreeting model.gameStatus) ]
             , div [ class ("gamestatus " ++ gameStatusToString model.gameStatus) ] []
             , ul [ class "button-row" ]
                 [ li [] [ button [ onClick BackToMenu ] [ text "Back to menu" ] ]
                 , li [] [ button [ onClick ResetGame ] [ text "Reset Game" ] ]
                 ]
-            , div [] [ text ("Flags remaining: " ++ String.fromInt model.remainingFlags) ]
+            , div [ class "stats-container" ]
+                [ text ("Flags remaining: " ++ String.fromInt model.remainingFlags)
+                , viewCounter "Timer: " model.gameDurationSeconds
+                ]
             , viewGrid model.grid
             ]
         ]
@@ -253,6 +307,30 @@ view model =
             viewInGame model
 
 
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    let
+        hasStarted =
+            not <| isFirstAction model.grid
+    in
+    case ( hasStarted, model.gameStatus ) of
+        -- Lost, stop counting
+        ( _, Lost ) ->
+            Sub.none
+
+        -- Won, stop counting
+        ( _, Won ) ->
+            Sub.none
+
+        -- Started and not lost
+        ( True, _ ) ->
+            every 1000 SecondElapsed
+
+        -- else, don't count
+        ( _, _ ) ->
+            Sub.none
+
+
 
 ---- PROGRAM ----
 
@@ -263,5 +341,5 @@ main =
         { view = view
         , init = init
         , update = update
-        , subscriptions = always Sub.none
+        , subscriptions = subscriptions
         }

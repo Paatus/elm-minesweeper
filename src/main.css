@@ -29,12 +29,23 @@ img {
   max-width: 200px;
 }
 
+.gameWrapper {
+    width: 500px;
+    margin: 1em auto;
+}
+
 .gameBoard {
     width: 500px;
     height: 500px;
     margin: 1em auto;
     display: flex;
     flex-wrap: wrap;
+}
+
+.stats-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 

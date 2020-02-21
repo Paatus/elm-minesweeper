@@ -1,4 +1,4 @@
-module Grid exposing (evaluateGameStatus, flag, flagsPlaced, generate, showSurrounding, visit)
+module Grid exposing (evaluateGameStatus, flag, flagsPlaced, generate, placedFlags, showSurrounding, untouched, visit)
 
 import Dict exposing (Dict)
 import Random exposing (Seed)
@@ -292,6 +292,38 @@ hasLost grid =
     Dict.filter visibleBombs grid
         |> Dict.size
         |> gt 0
+
+
+touchedCells : Coordinates -> Cell -> Bool
+touchedCells _ cell =
+    case cell of
+        Cell Hidden _ ->
+            False
+
+        _ ->
+            True
+
+
+placedFlags : Grid -> Int
+placedFlags grid =
+    Dict.filter
+        (\_ c ->
+            case c of
+                Cell Flag _ ->
+                    True
+
+                _ ->
+                    False
+        )
+        grid
+        |> Dict.size
+
+
+untouched : Grid -> Bool
+untouched grid =
+    Dict.filter touchedCells grid
+        |> Dict.size
+        |> (==) 0
 
 
 nonFlaggedBombs : Coordinates -> Cell -> Bool
