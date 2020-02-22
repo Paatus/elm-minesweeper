@@ -12,6 +12,7 @@ import Time exposing (every, toMillis, utc)
 import Types exposing (..)
 
 
+
 ---- MODEL ----
 
 
@@ -203,6 +204,7 @@ viewCell ( coords, cell ) =
                     [ text <|
                         if bombCount > 0 then
                             String.fromInt bombCount
+
                         else
                             ""
                     ]
@@ -264,6 +266,7 @@ viewCounter title durationSeconds =
         seconds =
             if durationSeconds > 60 then
                 remainderBy 60 durationSeconds
+
             else
                 durationSeconds
     in
