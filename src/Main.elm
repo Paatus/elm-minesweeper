@@ -247,6 +247,8 @@ viewDifficultySelect selectedDifficulty =
             in
             [ width fill
             , centerY
+            , centerX
+            , F.center
             , padding 20
             , noOutline
             , B.color (rgb255 2 2 2)
@@ -254,7 +256,7 @@ viewDifficultySelect selectedDifficulty =
                 ++ selectedStyles
     in
     row [ width fill, paddingXY 0 10 ]
-        [ el [ width (px 200), F.alignLeft ] (text "Difficulty")
+        [ el [ width (px 200) ] (text "Difficulty")
         , button
             (styles Easy
                 ++ [ B.roundEach
@@ -555,6 +557,7 @@ buttonStyles =
     , Element.mouseOver
         [ Bg.color (rgb255 68 197 255) ]
     , noOutline
+    , F.center
     ]
 
 
