@@ -1,15 +1,16 @@
 module RightClick exposing (onRightClick)
 
 import Html as HTML
-import Html.Events as HTMLEvent exposing (custom)
 import Json.Decode as Json
+import Svg
+import Svg.Events exposing (custom)
 
 
-onRightClick : msg -> HTML.Attribute msg
-onRightClick msg =
-    HTMLEvent.custom "contextmenu"
+onRightClick : msg -> Svg.Attribute msg
+onRightClick message =
+    custom "contextmenu"
         (Json.succeed
-            { message = msg
+            { message = message
             , stopPropagation = True
             , preventDefault = True
             }

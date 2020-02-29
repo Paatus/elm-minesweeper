@@ -2,6 +2,7 @@ module GridTests exposing (all)
 
 import Dict
 import Expect
+import Fuzz as Fuzz
 import Grid
 import Random
 import Test exposing (..)
@@ -18,33 +19,40 @@ isBomb mc cell =
             False
 
 
+isHidden : ( Coordinates, Cell ) -> Bool
+isHidden ( _, cell ) =
+    case cell of
+        Cell Hidden _ ->
+            True
+
+        _ ->
+            False
+
+
+addOne n =
+    n + 1
+
+
+difficultyFuzzer : Fuzz.Fuzzer Difficulty
+difficultyFuzzer =
+    Fuzz.oneOf
+        [ Fuzz.constant Easy
+        , Fuzz.constant Medium
+        , Fuzz.constant Hard
+        ]
+
+
 all : Test
 all =
     describe "Grid generation"
-        [ test "Grid.generate generates a Dict of the correct size" <|
-            \_ ->
+        [ fuzz2 difficultyFuzzer (Fuzz.intRange 2 50) "Grid.generate generates a Dict of the correct size" <|
+            \diff size ->
                 let
-                    size =
-                        3
-
-                    bombs =
-                        2
-
                     grid =
-                        Grid.generate size bombs (Random.initialSeed 1)
+                        Grid.generate size diff (Random.initialSeed 1)
                 in
                 Expect.equal (Dict.size grid) (size * size)
-        , test "Grid.generate generates the correct amount of bombs" <|
+        , test "All cells are hidden upon generation" <|
             \_ ->
-                let
-                    size =
-                        3
-
-                    bombs =
-                        2
-
-                    grid =
-                        Grid.generate size bombs (Random.initialSeed 1)
-                in
-                Expect.equal (Dict.filter isBomb grid |> Dict.size) bombs
+                Expect.true "All cells are hidden" (Grid.generate 2 Easy (Random.initialSeed 1) |> Dict.toList |> List.all isHidden)
         ]

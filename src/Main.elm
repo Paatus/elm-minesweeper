@@ -2,14 +2,26 @@ module Main exposing (..)
 
 import Browser
 import Dict exposing (Dict)
+import Element exposing (Element, alignLeft, alignRight, centerX, centerY, column, el, fill, height, htmlAttribute, image, layout, padding, paddingEach, paddingXY, px, rgb255, row, spaceEvenly, spacing, text, width, wrappedRow)
+import Element.Background as Bg
+import Element.Border as B
+import Element.Events exposing (onClick)
+import Element.Font as F exposing (bold, heavy)
+import Element.Input as I exposing (button)
+import Element.Keyed as Keyed
+import Element.Lazy exposing (lazy)
 import Grid
-import Html exposing (Html, b, button, div, h1, h2, img, li, text, ul)
-import Html.Attributes exposing (class, src)
-import Html.Events exposing (onClick)
+import Html as Html
+import Html.Attributes as HA
+import Json.Decode as Json
 import Random exposing (Generator, generate)
 import RightClick exposing (onRightClick)
+import Svg
+import Svg.Attributes as SVGA
+import Svg.Events as SVGE
 import Time exposing (every, toMillis, utc)
 import Types exposing (..)
+import Utils exposing (showAll)
 
 
 
@@ -26,9 +38,12 @@ type alias Model =
     , gameState : GameState
     , grid : Grid
     , gameStatus : GameStatus
-    , bombAmount : Int
+    , gridSize : Int
     , remainingFlags : Int
     , gameDurationSeconds : Int
+    , difficulty : Difficulty
+    , minGridSize : Int
+    , maxGridSize : Int
     }
 
 
@@ -38,16 +53,25 @@ init initialSeed =
         seed =
             Random.initialSeed initialSeed
 
-        bombAmount =
-            40
+        gridSize =
+            20
+
+        difficulty =
+            Easy
+
+        grid =
+            Grid.generate gridSize difficulty seed
     in
     ( { randomSeed = seed
       , gameState = StartMenu
-      , grid = Grid.generate 20 bombAmount seed
+      , grid = grid
       , gameStatus = Running
-      , bombAmount = bombAmount
-      , remainingFlags = bombAmount
+      , gridSize = gridSize
+      , remainingFlags = Grid.remainingFlags grid
       , gameDurationSeconds = 0
+      , difficulty = difficulty
+      , minGridSize = 2
+      , maxGridSize = 50
       }
     , Cmd.none
     )
@@ -66,6 +90,8 @@ type Msg
     | CellRightClick Coordinates
     | VisibleCellClick Coordinates
     | SecondElapsed Time.Posix
+    | SetGridSize Int
+    | SetDifficulty Difficulty
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -78,7 +104,22 @@ update msg model =
             ( tickSeconds model, Cmd.none )
 
         StartGame ->
-            ( { model | gameState = InGame }, Cmd.none )
+            let
+                newSeed =
+                    Random.step (Random.int 0 512) model.randomSeed
+                        |> Tuple.second
+
+                grid =
+                    Grid.generate model.gridSize model.difficulty newSeed
+            in
+            ( { model
+                | gameState = InGame
+                , grid = grid
+                , remainingFlags = Grid.remainingFlags grid
+                , randomSeed = newSeed
+              }
+            , Cmd.none
+            )
 
         ResetGame ->
             let
@@ -86,10 +127,9 @@ update msg model =
                     Random.step (Random.int 0 512) model.randomSeed
                         |> Tuple.second
             in
-            updateGridAndStatus (\_ -> Grid.generate 20 model.bombAmount newSeed)
+            updateGridAndStatus (\_ -> Grid.generate model.gridSize model.difficulty newSeed)
                 { model
                     | randomSeed = newSeed
-                    , remainingFlags = model.bombAmount
                     , gameDurationSeconds = 0
                 }
 
@@ -100,14 +140,16 @@ update msg model =
             updateGridAndStatus (Grid.showSurrounding ( x, y )) model
 
         CellRightClick ( x, y ) ->
-            let
-                ( m, cmd ) =
-                    updateGridAndStatus (Grid.flag ( x, y )) model
-            in
-            ( { m | remainingFlags = m.bombAmount - Grid.placedFlags m.grid }, cmd )
+            updateGridAndStatus (Grid.flag ( x, y )) model
 
         BackToMenu ->
             update ResetGame { model | gameState = StartMenu }
+
+        SetGridSize size ->
+            ( { model | gridSize = size }, Cmd.none )
+
+        SetDifficulty difficulty ->
+            update ResetGame { model | difficulty = difficulty }
 
 
 tickSeconds : Model -> Model
@@ -129,12 +171,13 @@ updateGridAndStatus gridUpdater model =
         gameStatus =
             Grid.evaluateGameStatus newGrid
 
-        firstAction =
-            isFirstAction model.grid
+        remainingFlags =
+            Grid.remainingFlags newGrid
     in
     ( { model
         | grid = newGrid
         , gameStatus = gameStatus
+        , remainingFlags = remainingFlags
       }
     , Cmd.none
     )
@@ -144,95 +187,308 @@ updateGridAndStatus gridUpdater model =
 ---- VIEW ----
 
 
-numToString : Int -> String
-numToString n =
+numToColor : Int -> String
+numToColor n =
     case n of
         1 ->
-            "one"
+            "blue"
 
         2 ->
-            "two"
+            "green"
 
         3 ->
-            "three"
+            "red"
 
         4 ->
-            "four"
+            "darkblue"
 
         5 ->
-            "five"
+            "darkred"
 
         6 ->
-            "six"
+            "cyan"
 
         7 ->
-            "seven"
+            "black"
 
         8 ->
-            "eight"
+            "gray"
 
         _ ->
-            ""
+            "black"
 
 
-viewStartMenu : Model -> Html Msg
-viewStartMenu model =
-    div []
-        [ h1 [] [ text "Welcome to Elmsweeper" ]
-        , button [ onClick StartGame ] [ text "New game" ]
+maybeSet : (Int -> Msg) -> String -> Msg
+maybeSet msg x =
+    case String.toInt x of
+        Nothing ->
+            msg 0
+
+        Just b ->
+            msg b
+
+
+viewDifficultySelect : Difficulty -> Element Msg
+viewDifficultySelect selectedDifficulty =
+    let
+        styles diff =
+            let
+                selectedStyles =
+                    if diff == selectedDifficulty then
+                        [ Bg.color (rgb255 18 147 216)
+                        , F.color (rgb255 255 255 255)
+                        , Element.mouseOver [ Bg.color (rgb255 68 197 255) ]
+                        ]
+
+                    else
+                        [ Bg.color (rgb255 220 220 220)
+                        , F.color (rgb255 0 0 0)
+                        ]
+            in
+            [ width fill
+            , centerY
+            , padding 20
+            , noOutline
+            , B.color (rgb255 2 2 2)
+            ]
+                ++ selectedStyles
+    in
+    row [ width fill, paddingXY 0 10 ]
+        [ el [ width (px 200), F.alignLeft ] (text "Difficulty")
+        , button
+            (styles Easy
+                ++ [ B.roundEach
+                        { topLeft = 4
+                        , bottomLeft = 4
+                        , topRight = 0
+                        , bottomRight = 0
+                        }
+                   ]
+            )
+            { label = text "Easy"
+            , onPress = Just (SetDifficulty Easy)
+            }
+        , button (styles Medium)
+            { label = text "Medium"
+            , onPress = Just (SetDifficulty Medium)
+            }
+        , button
+            (styles Hard
+                ++ [ B.roundEach
+                        { topLeft = 0
+                        , bottomLeft = 0
+                        , topRight = 4
+                        , bottomRight = 4
+                        }
+                   ]
+            )
+            { label = text "Hard"
+            , onPress = Just (SetDifficulty Hard)
+            }
         ]
 
 
-viewCell : ( Coordinates, Cell ) -> Html Msg
-viewCell ( coords, cell ) =
+validSetup : { model | gridSize : Int, minGridSize : Int, maxGridSize : Int } -> Bool
+validSetup { gridSize, minGridSize, maxGridSize } =
+    gridSize >= minGridSize && gridSize <= maxGridSize
+
+
+disabledButtonStyles : List (Element.Attribute msg)
+disabledButtonStyles =
+    [ Bg.color (rgb255 220 220 220)
+    , F.color (rgb255 150 150 150)
+    , Element.mouseOver
+        []
+    ]
+
+
+viewStartMenu : Model -> Element Msg
+viewStartMenu model =
+    column [ width (px 1024), centerX, padding 16 ]
+        [ el
+            [ centerX
+            , heavy
+            , paddingEach { top = 16, left = 0, bottom = 32, right = 0 }
+            , F.size (round (scaled 4))
+            ]
+            (text "Welcome to Elmsweeper")
+        , column [ width fill ]
+            [ I.text []
+                { onChange = maybeSet SetGridSize
+                , text =
+                    if model.gridSize > 0 then
+                        String.fromInt model.gridSize
+
+                    else
+                        ""
+                , placeholder = Nothing
+                , label = I.labelLeft [ centerY, width (px 195), F.alignLeft ] (text "Size")
+                }
+            , viewDifficultySelect model.difficulty
+            ]
+        , el [ centerX, padding 8, F.color (rgb255 255 0 0) ]
+            (if validSetup model then
+                text ""
+
+             else
+                text ("Size must be between " ++ String.fromInt model.minGridSize ++ " and " ++ String.fromInt model.maxGridSize)
+            )
+        , button
+            (buttonStyles
+                ++ [ centerX, width fill ]
+                ++ (if validSetup model then
+                        []
+
+                    else
+                        disabledButtonStyles
+                   )
+            )
+            { label = text "Start game"
+            , onPress =
+                if validSetup model then
+                    Just StartGame
+
+                else
+                    Nothing
+            }
+        ]
+
+
+coordsToString : Coordinates -> String
+coordsToString ( x, y ) =
+    String.fromInt x ++ "x" ++ String.fromInt y
+
+
+viewCell : Int -> ( Coordinates, Cell ) -> Svg.Svg Msg
+viewCell cellSize ( ( x, y ), cell ) =
+    let
+        yPos =
+            y * cellSize
+
+        xPos =
+            x * cellSize
+
+        xPosStr =
+            String.fromInt xPos
+
+        yPosStr =
+            String.fromInt yPos
+
+        cellSizeStr =
+            cellSize |> String.fromInt
+
+        color =
+            case cell of
+                Cell Hidden _ ->
+                    "gray"
+
+                Cell Visible _ ->
+                    "lightgray"
+
+                Cell Flag _ ->
+                    "blue"
+
+        padding =
+            floor (toFloat cellSize * 0.1)
+
+        baseAttrs =
+            [ SVGA.x xPosStr
+            , SVGA.y yPosStr
+            , SVGA.width cellSizeStr
+            , SVGA.height cellSizeStr
+            , SVGA.stroke "black"
+            , SVGA.fill "gray"
+            , SVGA.cursor "pointer"
+            ]
+    in
     case cell of
         Cell Hidden _ ->
-            div
-                [ class "hidden-cell"
-                , onClick (CellClick coords)
-                , onRightClick (CellRightClick coords)
-                ]
-                []
+            Svg.rect ([ SVGE.onClick (CellClick ( x, y )), onRightClick (CellRightClick ( x, y )) ] ++ baseAttrs) []
 
         Cell Visible Bomb ->
-            div [ class "visible-cell bomb" ]
-                []
-
-        Cell Visible (AdjacentBombs bombCount) ->
-            div [ class ("visible-cell " ++ numToString bombCount), onClick (VisibleCellClick coords) ]
-                [ b []
-                    [ text <|
-                        if bombCount > 0 then
-                            String.fromInt bombCount
-
-                        else
-                            ""
-                    ]
+            Svg.g []
+                [ Svg.rect (baseAttrs ++ [ SVGA.fill "lightgray" ]) []
+                , Svg.image
+                    (baseAttrs
+                        ++ [ SVGA.xlinkHref "bomb.svg"
+                           , SVGA.width (String.fromInt (floor (toFloat cellSize * 0.8)))
+                           , SVGA.x (xPos + padding |> String.fromInt)
+                           ]
+                    )
+                    []
                 ]
 
+        Cell Visible (AdjacentBombs bombCount) ->
+            if bombCount > 0 then
+                Svg.g [ SVGE.onClick (VisibleCellClick ( x, y )) ]
+                    [ Svg.rect
+                        (baseAttrs ++ [ SVGA.fill "lightgray" ])
+                        []
+                    , Svg.text_
+                        (baseAttrs
+                            ++ [ SVGA.fill (numToColor bombCount)
+                               , SVGA.fontSize (String.fromInt (cellSize // 2))
+                               , SVGA.x (String.fromInt (xPos + (cellSize // 2)))
+                               , SVGA.y (String.fromInt (yPos + ((cellSize // 4) * 3)))
+                               , SVGA.textAnchor "middle"
+                               , SVGA.stroke "none"
+                               ]
+                        )
+                        [ Svg.text (bombCount |> String.fromInt) ]
+                    ]
+
+            else
+                Svg.rect (baseAttrs ++ [ SVGA.fill "lightgray" ]) []
+
         Cell Flag _ ->
-            div [ class "visible-cell flag", onRightClick (CellRightClick coords) ] []
+            Svg.g [ onRightClick (CellRightClick ( x, y )) ]
+                [ Svg.rect baseAttrs []
+                , Svg.image
+                    (baseAttrs
+                        ++ [ SVGA.xlinkHref "flag.svg"
+                           , SVGA.width (String.fromInt (floor (toFloat cellSize * 0.8)))
+                           , SVGA.x (xPos + padding |> String.fromInt)
+                           ]
+                    )
+                    []
+                ]
 
 
-viewGrid grid =
+viewGrid : Model -> Element Msg
+viewGrid model =
     let
         gridList =
-            Dict.toList grid
+            Dict.toList model.grid
+
+        canvasSize =
+            1024
+
+        canvasSizeStr =
+            canvasSize |> String.fromInt
     in
-    div [ class "gameBoard" ] <| List.map viewCell gridList
+    el [ width (px canvasSize) ]
+        (Element.html
+            (Svg.svg
+                [ SVGA.width canvasSizeStr
+                , SVGA.height canvasSizeStr
+                , SVGA.viewBox ("0 0 " ++ canvasSizeStr ++ " " ++ canvasSizeStr)
+                ]
+                (List.map (viewCell (canvasSize // model.gridSize)) gridList)
+            )
+        )
 
 
-gameStatusToString : GameStatus -> String
-gameStatusToString gameStatus =
+gameStatusToEmoji : GameStatus -> String
+gameStatusToEmoji gameStatus =
     case gameStatus of
         Running ->
-            "running"
+            "happy.svg"
 
         Won ->
-            "won"
+            "very-happy.svg"
 
         Lost ->
-            "lost"
+            "dead.svg"
 
 
 gameStatusToGreeting : GameStatus -> String
@@ -254,7 +510,7 @@ zeroPad =
         >> String.padLeft 2 '0'
 
 
-viewCounter : String -> Int -> Html msg
+viewCounter : String -> Int -> Element msg
 viewCounter title durationSeconds =
     let
         hours =
@@ -270,44 +526,66 @@ viewCounter title durationSeconds =
             else
                 durationSeconds
     in
-    div []
-        [ text
+    el []
+        (text
             ([ hours, minutes, seconds ]
                 |> List.map zeroPad
                 |> List.intersperse ":"
                 |> (::) title
                 |> String.concat
             )
-        ]
+        )
 
 
-viewInGame : Model -> Html Msg
+scaled =
+    Element.modular 16 1.25
+
+
+noOutline =
+    Element.htmlAttribute <| HA.style "box-shadow" "none"
+
+
+buttonStyles : List (Element.Attribute msg)
+buttonStyles =
+    [ Bg.color (rgb255 18 147 216)
+    , padding 16
+    , B.rounded 3
+    , F.color (rgb255 255 255 255)
+    , bold
+    , Element.mouseOver
+        [ Bg.color (rgb255 68 197 255) ]
+    , noOutline
+    ]
+
+
+viewInGame : Model -> Element Msg
 viewInGame model =
-    div []
-        [ div [ class "gameWrapper" ]
-            [ h1 [] [ text (gameStatusToGreeting model.gameStatus) ]
-            , div [ class ("gamestatus " ++ gameStatusToString model.gameStatus) ] []
-            , ul [ class "button-row" ]
-                [ li [] [ button [ onClick BackToMenu ] [ text "Back to menu" ] ]
-                , li [] [ button [ onClick ResetGame ] [ text "Reset Game" ] ]
+    el [ width (px 1024), centerX, padding 16 ]
+        (column [ centerX ]
+            [ el [ centerX, heavy, F.size (round (scaled 3)) ] (text (gameStatusToGreeting model.gameStatus))
+            , row [ paddingXY 0 16, spaceEvenly, width fill ]
+                [ button buttonStyles { label = text "Back to menu", onPress = Just BackToMenu }
+                , button buttonStyles { label = text "Reset Game", onPress = Just ResetGame }
                 ]
-            , div [ class "stats-container" ]
+            , row [ paddingXY 0 8, spaceEvenly, width fill ]
                 [ text ("Flags remaining: " ++ String.fromInt model.remainingFlags)
+                , image [ width (px 80), height (px 80) ] { src = gameStatusToEmoji model.gameStatus, description = "smiley" }
                 , viewCounter "Timer: " model.gameDurationSeconds
                 ]
-            , viewGrid model.grid
+            , viewGrid model
             ]
-        ]
+        )
 
 
-view : Model -> Html Msg
+view : Model -> Html.Html Msg
 view model =
-    case model.gameState of
-        StartMenu ->
-            viewStartMenu model
+    layout [] <|
+        case model.gameState of
+            StartMenu ->
+                viewStartMenu model
 
-        InGame ->
-            viewInGame model
+            InGame ->
+                viewInGame model
 
 
 subscriptions : Model -> Sub Msg

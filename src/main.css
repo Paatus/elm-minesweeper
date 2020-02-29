@@ -126,3 +126,7 @@ img {
     margin: 1em auto;
     justify-content: space-around;
 }
+
+.texxt {
+    font: bold 30px sans-serif;
+}

@@ -3,6 +3,12 @@ module Types exposing (..)
 import Dict exposing (Dict)
 
 
+type Difficulty
+    = Easy
+    | Medium
+    | Hard
+
+
 type alias Grid =
     Dict Coordinates Cell
 

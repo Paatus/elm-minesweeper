@@ -1,5 +1,6 @@
-module Grid exposing (evaluateGameStatus, flag, flagsPlaced, generate, placedFlags, showSurrounding, untouched, visit)
+module Grid exposing (evaluateGameStatus, flag, flagsPlaced, generate, getBombAmount, remainingFlags, showSurrounding, untouched, visit)
 
+import Debug exposing (log)
 import Dict exposing (Dict)
 import Random exposing (Seed)
 import Random.Extra exposing (filter)
@@ -7,14 +8,46 @@ import Set exposing (Set)
 import Types exposing (..)
 
 
-generate : Int -> Int -> Seed -> Grid
-generate gridSize bombAmount seed =
+
+-- Gets the bomb amount based on the difficulty and amount of cells
+-- uses the bomb ratio of the original game
+
+
+getBombAmount : Difficulty -> Int -> Int
+getBombAmount difficulty cellAmount =
+    let
+        factor =
+            case difficulty of
+                Easy ->
+                    10 / (9 * 9)
+
+                Medium ->
+                    40 / (16 * 16)
+
+                Hard ->
+                    99 / (30 * 16)
+
+        bombs =
+            factor * toFloat cellAmount |> floor
+    in
+    if bombs == 0 then
+        bombs + 1
+
+    else
+        bombs
+
+
+generate : Int -> Difficulty -> Seed -> Grid
+generate gridSize difficulty seed =
     let
         positions =
             generateGrid_ 0 gridSize []
 
         cells =
             List.repeat (gridSize * gridSize) (Cell Hidden (AdjacentBombs 0))
+
+        bombAmount =
+            getBombAmount difficulty (gridSize * gridSize)
     in
     List.map2 Tuple.pair positions cells
         |> Dict.fromList
@@ -25,19 +58,18 @@ generate gridSize bombAmount seed =
 
 generateGrid_ : Int -> Int -> List ( Int, Int ) -> List ( Int, Int )
 generateGrid_ row maxRows list =
-    case row >= maxRows of
-        True ->
-            list
+    if row >= maxRows then
+        list
 
-        False ->
-            let
-                newSpots =
-                    generateRow row maxRows
+    else
+        let
+            newSpots =
+                generateRow row maxRows
 
-                newList =
-                    list ++ newSpots
-            in
-            generateGrid_ (row + 1) maxRows newList
+            newList =
+                list ++ newSpots
+        in
+        generateGrid_ (row + 1) maxRows newList
 
 
 generateRow : Int -> Int -> List ( Int, Int )
@@ -65,7 +97,7 @@ addRandomMine excludedCoords ( seed, grid ) =
     let
         isAvailable ( xP, yP ) =
             case Dict.get ( xP, yP ) grid of
-                Just (Cell Hidden (AdjacentBombs _)) ->
+                Just (Cell _ (AdjacentBombs _)) ->
                     not (Set.member ( xP, yP ) excludedCoords)
 
                 _ ->
@@ -121,11 +153,6 @@ toggleFlagCell mc =
 
         _ ->
             mc
-
-
-setAdjacentBombs : Int -> Maybe Cell -> Maybe Cell
-setAdjacentBombs bombAmount mc =
-    Just (Cell Hidden (AdjacentBombs bombAmount))
 
 
 insideGrid : Int -> Coordinates -> Bool
@@ -201,14 +228,9 @@ getAdjacentFlagCount pos grid =
         |> List.length
 
 
-expandNearby : List Coordinates -> Grid -> Grid
-expandNearby coords grid =
-    case coords of
-        first :: rest ->
-            expandNearby rest (visit first grid)
-
-        [] ->
-            grid
+expandNearby : Grid -> List Coordinates -> Grid
+expandNearby =
+    List.foldl visit
 
 
 isVisited : Grid -> Coordinates -> Bool
@@ -229,18 +251,18 @@ visit coords grid =
 
         tileIsBomb =
             isBomb grid coords
-
-        adjacentCells =
-            getAdjacentPositions (size grid) coords
-                |> List.filter (\x -> isVisited grid x)
     in
     case ( adjacentBombs, tileIsBomb ) of
         ( 0, False ) ->
-            Dict.update coords setVisibleCell grid
-                |> expandNearby adjacentCells
+            let
+                adjacentCells =
+                    getAdjacentPositions (size grid) coords
+                        |> List.filter (\x -> isVisited grid x)
 
-        ( _, True ) ->
-            Dict.update coords setVisibleCell grid
+                newGrid =
+                    Dict.update coords setVisibleCell grid
+            in
+            expandNearby newGrid adjacentCells
 
         _ ->
             Dict.update coords setVisibleCell grid
@@ -259,21 +281,21 @@ showSurrounding coords grid =
 
         adjacentFlags =
             getAdjacentFlagCount coords grid
-
-        adjacentCells =
-            getAdjacentPositions (size grid) coords
-                |> List.filter (\x -> isVisited grid x)
     in
-    case adjacentBombs == adjacentFlags of
-        True ->
-            expandNearby adjacentCells grid
+    if adjacentBombs == adjacentFlags then
+        let
+            adjacentCells =
+                getAdjacentPositions (size grid) coords
+                    |> List.filter (\x -> isVisited grid x)
+        in
+        expandNearby grid adjacentCells
 
-        False ->
-            grid
+    else
+        grid
 
 
-visibleBombs : Coordinates -> Cell -> Bool
-visibleBombs _ cell =
+visibleBombs : ( Coordinates, Cell ) -> Bool
+visibleBombs ( _, cell ) =
     case cell of
         Cell Visible Bomb ->
             True
@@ -288,14 +310,13 @@ gt less more =
 
 
 hasLost : Grid -> Bool
-hasLost grid =
-    Dict.filter visibleBombs grid
-        |> Dict.size
-        |> gt 0
+hasLost =
+    Dict.toList
+        >> List.any visibleBombs
 
 
-touchedCells : Coordinates -> Cell -> Bool
-touchedCells _ cell =
+touchedCells : ( Coordinates, Cell ) -> Bool
+touchedCells ( _, cell ) =
     case cell of
         Cell Hidden _ ->
             False
@@ -304,30 +325,45 @@ touchedCells _ cell =
             True
 
 
-placedFlags : Grid -> Int
-placedFlags grid =
-    Dict.filter
-        (\_ c ->
-            case c of
-                Cell Flag _ ->
-                    True
+remainingFlags : Grid -> Int
+remainingFlags grid =
+    let
+        bombAmount =
+            Dict.toList grid
+                |> List.filter
+                    (\( _, c ) ->
+                        case c of
+                            Cell _ Bomb ->
+                                True
 
-                _ ->
-                    False
-        )
-        grid
-        |> Dict.size
+                            _ ->
+                                False
+                    )
+                |> List.length
+    in
+    Dict.toList grid
+        |> List.filter
+            (\( _, c ) ->
+                case c of
+                    Cell Flag _ ->
+                        True
+
+                    _ ->
+                        False
+            )
+        |> List.length
+        |> (\x -> bombAmount - x)
 
 
 untouched : Grid -> Bool
-untouched grid =
-    Dict.filter touchedCells grid
-        |> Dict.size
-        |> (==) 0
+untouched =
+    Dict.toList
+        >> List.any touchedCells
+        >> not
 
 
-nonFlaggedBombs : Coordinates -> Cell -> Bool
-nonFlaggedBombs _ cell =
+nonFlaggedBombs : ( Coordinates, Cell ) -> Bool
+nonFlaggedBombs ( _, cell ) =
     case cell of
         Cell Flag Bomb ->
             False
@@ -339,8 +375,8 @@ nonFlaggedBombs _ cell =
             False
 
 
-hiddenSafeCell : Coordinates -> Cell -> Bool
-hiddenSafeCell _ cell =
+hiddenSafeCell : ( Coordinates, Cell ) -> Bool
+hiddenSafeCell ( _, cell ) =
     case cell of
         Cell Hidden (AdjacentBombs _) ->
             True
@@ -352,23 +388,10 @@ hiddenSafeCell _ cell =
 hasWon : Grid -> Bool
 hasWon grid =
     let
-        bombsWithoutFlags =
-            Dict.filter nonFlaggedBombs grid
-                |> Dict.size
-
-        safeCellsUnrevealed =
-            Dict.filter hiddenSafeCell grid
-                |> Dict.size
+        gridList =
+            Dict.toList grid
     in
-    case ( safeCellsUnrevealed, bombsWithoutFlags ) of
-        ( 0, _ ) ->
-            True
-
-        ( _, 0 ) ->
-            True
-
-        _ ->
-            False
+    List.any hiddenSafeCell gridList |> not
 
 
 evaluateGameStatus : Grid -> GameStatus
