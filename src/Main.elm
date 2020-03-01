@@ -14,11 +14,13 @@ import Grid
 import Html as Html
 import Html.Attributes as HA
 import Json.Decode as Json
+import Process as Process
 import Random exposing (Generator, generate)
 import RightClick exposing (onRightClick)
 import Svg
 import Svg.Attributes as SVGA
 import Svg.Events as SVGE
+import Task as Task
 import Time exposing (every, toMillis, utc)
 import Types exposing (..)
 import Utils exposing (showAll)
@@ -92,6 +94,7 @@ type Msg
     | SecondElapsed Time.Posix
     | SetGridSize Int
     | SetDifficulty Difficulty
+    | RevealBomb
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -151,6 +154,15 @@ update msg model =
         SetDifficulty difficulty ->
             update ResetGame { model | difficulty = difficulty }
 
+        RevealBomb ->
+            revealBombs model.grid model
+
+
+delay : Float -> msg -> Cmd msg
+delay time msg =
+    Process.sleep time
+        |> Task.perform (\_ -> msg)
+
 
 tickSeconds : Model -> Model
 tickSeconds model =
@@ -160,6 +172,16 @@ tickSeconds model =
 isFirstAction : Grid -> Bool
 isFirstAction grid =
     Grid.untouched grid
+
+
+revealBombs : Grid -> Model -> ( Model, Cmd Msg )
+revealBombs grid model =
+    case Grid.revealFirstBomb grid of
+        Just ( nGrid, _ ) ->
+            ( { model | grid = nGrid }, delay 0.0 RevealBomb )
+
+        Nothing ->
+            ( model, Cmd.none )
 
 
 updateGridAndStatus : (Grid -> Grid) -> Model -> ( Model, Cmd Msg )
@@ -173,14 +195,21 @@ updateGridAndStatus gridUpdater model =
 
         remainingFlags =
             Grid.remainingFlags newGrid
+
+        newModel =
+            { model
+                | grid = newGrid
+                , gameStatus = gameStatus
+                , remainingFlags = remainingFlags
+            }
     in
-    ( { model
-        | grid = newGrid
-        , gameStatus = gameStatus
-        , remainingFlags = remainingFlags
-      }
-    , Cmd.none
-    )
+    if gameStatus == Lost then
+        revealBombs newGrid newModel
+
+    else
+        ( newModel
+        , Cmd.none
+        )
 
 
 
@@ -362,7 +391,7 @@ coordsToString ( x, y ) =
 
 
 viewCell : Int -> ( Coordinates, Cell ) -> Svg.Svg Msg
-viewCell cellSize ( ( x, y ), cell ) =
+viewCell cellSize ( ( y, x ), cell ) =
     let
         yPos =
             y * cellSize
@@ -405,7 +434,7 @@ viewCell cellSize ( ( x, y ), cell ) =
     in
     case cell of
         Cell Hidden _ ->
-            Svg.rect ([ SVGE.onClick (CellClick ( x, y )), onRightClick (CellRightClick ( x, y )) ] ++ baseAttrs) []
+            Svg.rect ([ SVGE.onClick (CellClick ( y, x )), onRightClick (CellRightClick ( y, x )) ] ++ baseAttrs) []
 
         Cell Visible Bomb ->
             Svg.g []
@@ -422,7 +451,7 @@ viewCell cellSize ( ( x, y ), cell ) =
 
         Cell Visible (AdjacentBombs bombCount) ->
             if bombCount > 0 then
-                Svg.g [ SVGE.onClick (VisibleCellClick ( x, y )) ]
+                Svg.g [ SVGE.onClick (VisibleCellClick ( y, x )) ]
                     [ Svg.rect
                         (baseAttrs ++ [ SVGA.fill "lightgray" ])
                         []
@@ -443,7 +472,7 @@ viewCell cellSize ( ( x, y ), cell ) =
                 Svg.rect (baseAttrs ++ [ SVGA.fill "lightgray" ]) []
 
         Cell Flag _ ->
-            Svg.g [ onRightClick (CellRightClick ( x, y )) ]
+            Svg.g [ onRightClick (CellRightClick ( y, x )) ]
                 [ Svg.rect baseAttrs []
                 , Svg.image
                     (baseAttrs
@@ -468,7 +497,7 @@ viewGrid model =
         canvasSizeStr =
             canvasSize |> String.fromInt
     in
-    el [ width (px canvasSize) ]
+    el [ width (px canvasSize), noTextSelect ]
         (Element.html
             (Svg.svg
                 [ SVGA.width canvasSizeStr
@@ -545,6 +574,10 @@ scaled =
 
 noOutline =
     Element.htmlAttribute <| HA.style "box-shadow" "none"
+
+
+noTextSelect =
+    Element.htmlAttribute <| HA.style "user-select" "none"
 
 
 buttonStyles : List (Element.Attribute msg)

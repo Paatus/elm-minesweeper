@@ -1,4 +1,4 @@
-module Grid exposing (evaluateGameStatus, flag, flagsPlaced, generate, getBombAmount, remainingFlags, showSurrounding, untouched, visit)
+module Grid exposing (evaluateGameStatus, flag, flagsPlaced, generate, getBombAmount, remainingFlags, revealFirstBomb, showSurrounding, untouched, visit)
 
 import Debug exposing (log)
 import Dict exposing (Dict)
@@ -37,6 +37,11 @@ getBombAmount difficulty cellAmount =
         bombs
 
 
+swapXY : ( Coordinates, Cell ) -> ( Coordinates, Cell )
+swapXY ( ( x, y ), c ) =
+    ( ( y, x ), c )
+
+
 generate : Int -> Difficulty -> Seed -> Grid
 generate gridSize difficulty seed =
     let
@@ -50,6 +55,7 @@ generate gridSize difficulty seed =
             getBombAmount difficulty (gridSize * gridSize)
     in
     List.map2 Tuple.pair positions cells
+        |> List.map swapXY
         |> Dict.fromList
         |> (\g -> addRandomMines bombAmount Set.empty ( seed, g ))
         |> Tuple.second
@@ -132,8 +138,8 @@ setBombCell mc =
     Just (Cell Hidden Bomb)
 
 
-setVisibleCell : Maybe Cell -> Maybe Cell
-setVisibleCell mc =
+visitCell : Maybe Cell -> Maybe Cell
+visitCell mc =
     case mc of
         Just (Cell Hidden a) ->
             Just (Cell Visible a)
@@ -260,12 +266,12 @@ visit coords grid =
                         |> List.filter (\x -> isVisited grid x)
 
                 newGrid =
-                    Dict.update coords setVisibleCell grid
+                    Dict.update coords visitCell grid
             in
             expandNearby newGrid adjacentCells
 
         _ ->
-            Dict.update coords setVisibleCell grid
+            Dict.update coords visitCell grid
 
 
 flag : Coordinates -> Grid -> Grid
@@ -427,3 +433,48 @@ flagsPlaced grid =
         )
         grid
         |> Dict.size
+
+
+showCell : Grid -> Coordinates -> Grid
+showCell grid coords =
+    Dict.update coords
+        (\mc ->
+            case mc of
+                Just (Cell _ state) ->
+                    Just (Cell Visible state)
+
+                Nothing ->
+                    Nothing
+        )
+        grid
+
+
+revealFirstBomb : Grid -> Maybe ( Grid, Bool )
+revealFirstBomb grid =
+    let
+        cell =
+            Dict.toList grid
+                |> List.filter
+                    (\( coords, c ) ->
+                        case c of
+                            Cell Hidden Bomb ->
+                                True
+
+                            Cell Flag Bomb ->
+                                True
+
+                            _ ->
+                                False
+                    )
+                |> List.head
+    in
+    case cell of
+        Nothing ->
+            Nothing
+
+        Just ( co, ce ) ->
+            let
+                nextGrid =
+                    showCell grid co
+            in
+            Just ( nextGrid, True )
