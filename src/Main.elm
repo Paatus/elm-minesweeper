@@ -408,17 +408,6 @@ viewCell cellSize ( ( y, x ), cell ) =
         cellSizeStr =
             cellSize |> String.fromInt
 
-        color =
-            case cell of
-                Cell Hidden _ ->
-                    "gray"
-
-                Cell Visible _ ->
-                    "lightgray"
-
-                Cell Flag _ ->
-                    "blue"
-
         padding =
             floor (toFloat cellSize * 0.1)
 

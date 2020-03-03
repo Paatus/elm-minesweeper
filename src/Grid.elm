@@ -1,7 +1,6 @@
 module Grid exposing (evaluateGameStatus, flag, flagsPlaced, generate, getBombAmount, remainingFlags, revealFirstBomb, showSurrounding, untouched, visit)
 
-import Debug exposing (log)
-import Dict exposing (Dict)
+import Dict
 import Random exposing (Seed)
 import Random.Extra exposing (filter)
 import Set exposing (Set)
@@ -310,11 +309,6 @@ visibleBombs ( _, cell ) =
             False
 
 
-gt : Int -> Int -> Bool
-gt less more =
-    less < more
-
-
 hasLost : Grid -> Bool
 hasLost =
     Dict.toList
@@ -366,19 +360,6 @@ untouched =
     Dict.toList
         >> List.any touchedCells
         >> not
-
-
-nonFlaggedBombs : ( Coordinates, Cell ) -> Bool
-nonFlaggedBombs ( _, cell ) =
-    case cell of
-        Cell Flag Bomb ->
-            False
-
-        Cell _ Bomb ->
-            True
-
-        _ ->
-            False
 
 
 hiddenSafeCell : ( Coordinates, Cell ) -> Bool

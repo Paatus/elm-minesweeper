@@ -33,4 +33,5 @@ install:
 script:
   - ls -la
   - elm-format --validate .
+  - npm run review
   - elm-test

@@ -1,0 +1,26 @@
+{
+    "name": "elm-minesweeper",
+    "version": "1.0.0",
+    "description": "My take on the classic minesweeper game, made in elm. [Try it][playLink]",
+    "main": "elmapp.config.js",
+    "directories": {
+        "test": "tests"
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "review": "elm-review"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Paatus/elm-minesweeper.git"
+    },
+    "author": "",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/Paatus/elm-minesweeper/issues"
+    },
+    "homepage": "https://github.com/Paatus/elm-minesweeper#readme",
+    "devDependencies": {
+        "elm-review": "^1.0.2"
+    }
+}
