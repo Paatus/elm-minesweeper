@@ -41,7 +41,7 @@ swapXY ( ( x, y ), c ) =
     ( ( y, x ), c )
 
 
-generate : Int -> Difficulty -> Seed -> Grid
+generate : Int -> Difficulty -> Seed -> ( Seed, Grid )
 generate gridSize difficulty seed =
     let
         positions =
@@ -52,13 +52,16 @@ generate gridSize difficulty seed =
 
         bombAmount =
             getBombAmount difficulty (gridSize * gridSize)
+
+        newSeed =
+            Random.step (Random.int Random.minInt Random.maxInt) seed
+                |> Tuple.second
     in
     List.map2 Tuple.pair positions cells
         |> List.map swapXY
         |> Dict.fromList
-        |> (\g -> addRandomMines bombAmount Set.empty ( seed, g ))
-        |> Tuple.second
-        |> (\grid -> Dict.map (\coord -> addAdjacentCounts grid coord) grid)
+        |> (\g -> addRandomMines bombAmount Set.empty ( newSeed, g ))
+        |> Tuple.mapSecond (\grid -> Dict.map (\coord -> addAdjacentCounts grid coord) grid)
 
 
 generateGrid_ : Int -> Int -> List ( Int, Int ) -> List ( Int, Int )

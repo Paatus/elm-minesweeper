@@ -50,10 +50,10 @@ type alias Model =
 
 
 init : Int -> ( Model, Cmd Msg )
-init initialSeed =
+init initialSeedNumber =
     let
-        seed =
-            Random.initialSeed initialSeed
+        initialSeed =
+            Random.initialSeed initialSeedNumber
 
         gridSize =
             20
@@ -61,8 +61,8 @@ init initialSeed =
         difficulty =
             Easy
 
-        grid =
-            Grid.generate gridSize difficulty seed
+        ( seed, grid ) =
+            Grid.generate gridSize difficulty initialSeed
     in
     ( { randomSeed = seed
       , gameState = StartMenu
@@ -108,42 +108,44 @@ update msg model =
 
         StartGame ->
             let
-                newSeed =
-                    Random.step (Random.int 0 512) model.randomSeed
-                        |> Tuple.second
-
-                grid =
-                    Grid.generate model.gridSize model.difficulty newSeed
+                ( seed, grid ) =
+                    Grid.generate model.gridSize model.difficulty model.randomSeed
             in
             ( { model
                 | gameState = InGame
                 , grid = grid
                 , remainingFlags = Grid.remainingFlags grid
-                , randomSeed = newSeed
+                , randomSeed = seed
               }
             , Cmd.none
             )
 
         ResetGame ->
-            let
-                newSeed =
-                    Random.step (Random.int 0 512) model.randomSeed
-                        |> Tuple.second
-            in
-            updateGridAndStatus (\_ -> Grid.generate model.gridSize model.difficulty newSeed)
+            updateGridAndStatus (\_ -> Grid.generate model.gridSize model.difficulty model.randomSeed)
                 { model
-                    | randomSeed = newSeed
-                    , gameDurationSeconds = 0
+                    | gameDurationSeconds = 0
                 }
 
         CellClick ( x, y ) ->
-            updateGridAndStatus (Grid.visit ( x, y )) model
+            updateGridAndStatus
+                (Grid.visit ( x, y )
+                    >> Tuple.pair model.randomSeed
+                )
+                model
 
         VisibleCellClick ( x, y ) ->
-            updateGridAndStatus (Grid.showSurrounding ( x, y )) model
+            updateGridAndStatus
+                (Grid.showSurrounding ( x, y )
+                    >> Tuple.pair model.randomSeed
+                )
+                model
 
         CellRightClick ( x, y ) ->
-            updateGridAndStatus (Grid.flag ( x, y )) model
+            updateGridAndStatus
+                (Grid.flag ( x, y )
+                    >> Tuple.pair model.randomSeed
+                )
+                model
 
         BackToMenu ->
             update ResetGame { model | gameState = StartMenu }
@@ -184,10 +186,10 @@ revealBombs grid model =
             ( model, Cmd.none )
 
 
-updateGridAndStatus : (Grid -> Grid) -> Model -> ( Model, Cmd Msg )
+updateGridAndStatus : (Grid -> ( Random.Seed, Grid )) -> Model -> ( Model, Cmd Msg )
 updateGridAndStatus gridUpdater model =
     let
-        newGrid =
+        ( newSeed, newGrid ) =
             gridUpdater model.grid
 
         gameStatus =
@@ -201,6 +203,7 @@ updateGridAndStatus gridUpdater model =
                 | grid = newGrid
                 , gameStatus = gameStatus
                 , remainingFlags = remainingFlags
+                , randomSeed = newSeed
             }
     in
     if gameStatus == Lost then

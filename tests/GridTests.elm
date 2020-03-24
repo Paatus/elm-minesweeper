@@ -48,11 +48,16 @@ all =
         [ fuzz2 difficultyFuzzer (Fuzz.intRange 2 50) "Grid.generate generates a Dict of the correct size" <|
             \diff size ->
                 let
-                    grid =
+                    ( _, grid ) =
                         Grid.generate size diff (Random.initialSeed 1)
                 in
                 Expect.equal (Dict.size grid) (size * size)
         , test "All cells are hidden upon generation" <|
             \_ ->
-                Expect.true "All cells are hidden" (Grid.generate 2 Easy (Random.initialSeed 1) |> Dict.toList |> List.all isHidden)
+                Expect.true "All cells are hidden"
+                    (Grid.generate 2 Easy (Random.initialSeed 1)
+                        |> Tuple.second
+                        |> Dict.toList
+                        |> List.all isHidden
+                    )
         ]
