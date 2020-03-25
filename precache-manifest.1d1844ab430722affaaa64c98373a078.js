@@ -20,7 +20,7 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/elm-minesweeper/happy.svg"
   },
   {
-    "revision": "c4becf1a2268029e0a9019fe0973713b",
+    "revision": "c26f3acf0bf9e4d300782d07a5a02371",
     "url": "/elm-minesweeper/index.html"
   },
   {
@@ -32,8 +32,8 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/elm-minesweeper/manifest.json"
   },
   {
-    "revision": "35906f20047148e69972",
-    "url": "/elm-minesweeper/static/js/main.35906f20.chunk.js"
+    "revision": "5fffb1bee68c19ed281d",
+    "url": "/elm-minesweeper/static/js/main.5fffb1be.chunk.js"
   },
   {
     "revision": "4b0dacf4fad5255f38c7",
