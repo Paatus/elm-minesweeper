@@ -15,7 +15,7 @@ import Html as Html
 import Html.Attributes as HA
 import Json.Decode as Json
 import Process as Process
-import Random exposing (Generator, generate)
+import Random exposing (Generator)
 import RightClick exposing (onRightClick)
 import Svg
 import Svg.Attributes as SVGA
@@ -62,7 +62,7 @@ init initialSeedNumber =
             Easy
 
         ( seed, grid ) =
-            Grid.generate gridSize difficulty initialSeed
+            Grid.generateEmpty gridSize initialSeed
     in
     ( { randomSeed = seed
       , gameState = StartMenu
@@ -72,7 +72,7 @@ init initialSeedNumber =
       , remainingFlags = Grid.remainingFlags grid
       , gameDurationSeconds = 0
       , difficulty = difficulty
-      , minGridSize = 2
+      , minGridSize = 5
       , maxGridSize = 50
       }
     , Cmd.none
@@ -109,7 +109,7 @@ update msg model =
         StartGame ->
             let
                 ( seed, grid ) =
-                    Grid.generate model.gridSize model.difficulty model.randomSeed
+                    Grid.generateEmpty model.gridSize model.randomSeed
             in
             ( { model
                 | gameState = InGame
@@ -121,17 +121,26 @@ update msg model =
             )
 
         ResetGame ->
-            updateGridAndStatus (\_ -> Grid.generate model.gridSize model.difficulty model.randomSeed)
+            updateGridAndStatus (\_ -> Grid.generateEmpty model.gridSize model.randomSeed)
                 { model
                     | gameDurationSeconds = 0
                 }
 
         CellClick ( x, y ) ->
+            let
+                g =
+                    if isFirstAction model.grid then
+                        Grid.generateFromPosition model.grid model.difficulty model.randomSeed ( x, y )
+                            |> Tuple.second
+
+                    else
+                        model.grid
+            in
             updateGridAndStatus
                 (Grid.visit ( x, y )
                     >> Tuple.pair model.randomSeed
                 )
-                model
+                { model | grid = g }
 
         VisibleCellClick ( x, y ) ->
             updateGridAndStatus

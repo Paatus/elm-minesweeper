@@ -1,4 +1,4 @@
-module Grid exposing (evaluateGameStatus, flag, flagsPlaced, generate, getBombAmount, remainingFlags, revealFirstBomb, showSurrounding, untouched, visit)
+module Grid exposing (evaluateGameStatus, flag, flagsPlaced, generateEmpty, generateFromPosition, getAdjacentBombCount, getBombAmount, remainingFlags, revealFirstBomb, showSurrounding, untouched, visit)
 
 import Dict
 import Random exposing (Seed)
@@ -41,17 +41,14 @@ swapXY ( ( x, y ), c ) =
     ( ( y, x ), c )
 
 
-generate : Int -> Difficulty -> Seed -> ( Seed, Grid )
-generate gridSize difficulty seed =
+generateEmpty : Int -> Seed -> ( Seed, Grid )
+generateEmpty gridSize seed =
     let
         positions =
             generateGrid_ 0 gridSize []
 
         cells =
             List.repeat (gridSize * gridSize) (Cell Hidden (AdjacentBombs 0))
-
-        bombAmount =
-            getBombAmount difficulty (gridSize * gridSize)
 
         newSeed =
             Random.step (Random.int Random.minInt Random.maxInt) seed
@@ -60,7 +57,28 @@ generate gridSize difficulty seed =
     List.map2 Tuple.pair positions cells
         |> List.map swapXY
         |> Dict.fromList
-        |> (\g -> addRandomMines bombAmount Set.empty ( newSeed, g ))
+        |> Tuple.pair newSeed
+
+
+generateFromPosition : Grid -> Difficulty -> Seed -> Coordinates -> ( Seed, Grid )
+generateFromPosition prevGrid difficulty seed coords =
+    let
+        gridSize =
+            size prevGrid
+
+        bombAmount =
+            getBombAmount difficulty (gridSize * gridSize)
+
+        newSeed =
+            Random.step (Random.int Random.minInt Random.maxInt) seed
+                |> Tuple.second
+
+        emptyCoordinates =
+            getAdjacentPositions gridSize coords
+                |> (\cs -> [ coords ] ++ cs)
+                |> Set.fromList
+    in
+    addRandomMines bombAmount emptyCoordinates ( newSeed, prevGrid )
         |> Tuple.mapSecond (\grid -> Dict.map (\coord -> addAdjacentCounts grid coord) grid)
 
 
