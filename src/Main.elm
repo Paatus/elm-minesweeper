@@ -72,7 +72,7 @@ init initialSeedNumber =
       , remainingFlags = Grid.remainingFlags grid
       , gameDurationSeconds = 0
       , difficulty = difficulty
-      , minGridSize = 2
+      , minGridSize = 5
       , maxGridSize = 50
       }
     , Cmd.none

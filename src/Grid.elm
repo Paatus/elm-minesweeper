@@ -1,4 +1,4 @@
-module Grid exposing (evaluateGameStatus, flag, flagsPlaced, generateEmpty, generateFromPosition, getBombAmount, remainingFlags, revealFirstBomb, showSurrounding, untouched, visit)
+module Grid exposing (evaluateGameStatus, flag, flagsPlaced, generateEmpty, generateFromPosition, getAdjacentBombCount, getBombAmount, remainingFlags, revealFirstBomb, showSurrounding, untouched, visit)
 
 import Dict
 import Random exposing (Seed)
@@ -58,11 +58,6 @@ generateEmpty gridSize seed =
         |> List.map swapXY
         |> Dict.fromList
         |> Tuple.pair newSeed
-
-
-coordToString : Coordinates -> String
-coordToString ( x, y ) =
-    "(" ++ String.fromInt x ++ "," ++ String.fromInt y ++ ")"
 
 
 generateFromPosition : Grid -> Difficulty -> Seed -> Coordinates -> ( Seed, Grid )

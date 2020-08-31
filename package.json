@@ -21,6 +21,7 @@
     },
     "homepage": "https://github.com/Paatus/elm-minesweeper#readme",
     "devDependencies": {
+        "elm-analyse": "^0.16.5",
         "elm-review": "^1.0.2"
     }
 }
