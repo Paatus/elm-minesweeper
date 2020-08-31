@@ -1,6 +1,6 @@
 {
-  "main.js": "/elm-minesweeper/static/js/main.5fffb1be.chunk.js",
-  "main.js.map": "/elm-minesweeper/static/js/main.5fffb1be.chunk.js.map",
+  "main.js": "/elm-minesweeper/static/js/main.68c65856.chunk.js",
+  "main.js.map": "/elm-minesweeper/static/js/main.68c65856.chunk.js.map",
   "runtime~main.js": "/elm-minesweeper/static/js/runtime~main.4b0dacf4.js",
   "runtime~main.js.map": "/elm-minesweeper/static/js/runtime~main.4b0dacf4.js.map",
   "vendors~main.js": "/elm-minesweeper/static/js/vendors~main.3ca81432.chunk.js",
@@ -14,6 +14,6 @@
   "index.html": "/elm-minesweeper/index.html",
   "logo.svg": "/elm-minesweeper/logo.svg",
   "manifest.json": "/elm-minesweeper/manifest.json",
-  "precache-manifest.1d1844ab430722affaaa64c98373a078.js": "/elm-minesweeper/precache-manifest.1d1844ab430722affaaa64c98373a078.js",
+  "precache-manifest.10470199147efc3c659a6ecd73421c8a.js": "/elm-minesweeper/precache-manifest.10470199147efc3c659a6ecd73421c8a.js",
   "very-happy.svg": "/elm-minesweeper/very-happy.svg"
 }

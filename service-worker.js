@@ -14,7 +14,7 @@
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/4.3.1/workbox-sw.js");
 
 importScripts(
-  "/elm-minesweeper/precache-manifest.1d1844ab430722affaaa64c98373a078.js"
+  "/elm-minesweeper/precache-manifest.10470199147efc3c659a6ecd73421c8a.js"
 );
 
 workbox.core.skipWaiting();
